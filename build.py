@@ -8,6 +8,8 @@ import sys
 
 import PyInstaller.__main__
 
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 BUILD = os.path.join(HERE, "build")
 sys.path.insert(0, HERE)
