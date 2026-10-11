@@ -40,6 +40,44 @@ def work_area():
     return None
 
 
+class MONITORINFO(ctypes.Structure):
+    _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", RECT), ("rcWork", RECT), ("dwFlags", wintypes.DWORD)]
+
+
+_MonitorEnumProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HMONITOR, wintypes.HDC,
+                                      ctypes.POINTER(RECT), wintypes.LPARAM)
+
+
+def monitors():
+    """Tüm ekranların kullanılabilir alanları; ana ekran ilk sırada."""
+    found = []
+
+    def cb(hmon, hdc, rect, _):
+        info = MONITORINFO()
+        info.cbSize = ctypes.sizeof(MONITORINFO)
+        if user32.GetMonitorInfoW(hmon, ctypes.byref(info)):
+            w = info.rcWork
+            found.append(((w.left, w.top, w.right, w.bottom), bool(info.dwFlags & 1)))
+        return True
+
+    try:
+        user32.EnumDisplayMonitors(None, None, _MonitorEnumProc(cb), 0)
+    except Exception:
+        return []
+    found.sort(key=lambda m: not m[1])
+    return [area for area, primary in found]
+
+
+def click_through(tk_window):
+    """Pencereyi fare tıklamalarına tamamen geçirgen yap (mevsim efektleri için)."""
+    try:
+        hwnd = user32.GetParent(tk_window.winfo_id()) or tk_window.winfo_id()
+        style = user32.GetWindowLongW(hwnd, -20)
+        user32.SetWindowLongW(hwnd, -20, style | 0x80000 | 0x20 | 0x80)   # LAYERED | TRANSPARENT | TOOLWINDOW
+    except Exception:
+        pass
+
+
 def set_app_id(app_id):
     try:
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)

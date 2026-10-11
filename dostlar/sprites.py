@@ -7,6 +7,9 @@ K: çizgi  O: ana renk  D: koyu ton  W: açık ton  E: göz  P: pembe  Y: gaga/a
 BASE_PALETTE = {
     "K": "#2b1d14", "E": "#1a1a1a", "P": "#ff8fab", "W": "#fff4e6", "Y": "#ffb703",
     "R": "#e63946", "B": "#5fa8d3", "L": "#cae9ff", "Z": "#4361ee", "S": "#ffffff",
+    # efekt ve aksesuar renkleri (türler bunları ezmez)
+    "A": "#e76f51", "G": "#6a994e", "N": "#ff8fab", "C": "#ffd166", "M": "#7b2cbf",
+    "H": "#2b2d42", "T": "#7f5539", "Q": "#8d99ae",
 }
 BLANK = "." * 20
 
@@ -192,11 +195,139 @@ def frog_frames():
     )
 
 
+# Tilki --------------------------------------------------------------------------
+FOX_BODY = [
+    "..............K...K.",
+    ".............KDK.KDK",
+    ".............KOOOOOK",
+    ".KK.........KOOEOOOK",
+    "KWWK........KWWOOOOE",
+    "KWOOK.......KWWWWWK.",
+    "KOOOOKKKKKKKKWWWWK..",
+    ".KOOODOOOOOOOOWWWK..",
+    "..KKOOOOOOOOOOOWWK..",
+    "...KOOOOOOOOOOOOOK..",
+    "...KOOOOOOOOOOOOOK..",
+    "...KDOOOOOOOOOOODK..",
+    "....KKKKKKKKKKKKK...",
+]
+FOX_LEGS_A = ["...KDK.KDK..KDK.KDK.",
+              "...KDK.KDK..KDK.KDK.",
+              "...KKK.KKK..KKK.KKK."]
+FOX_LEGS_B = ["....KDKKDK..KDKKDK..",
+              "....KDKKDK..KDKKDK..",
+              "....KKKKKK..KKKKKK.."]
+
+
+def fox_frames():
+    walk1 = FOX_BODY + FOX_LEGS_A
+    return dict(
+        walk1=walk1,
+        walk2=FOX_BODY + FOX_LEGS_B,
+        blink=patch(walk1, (3, 15, "D")),
+        happy=patch(walk1, (3, 15, "K"), (4, 14, "P")),
+        dangle=patch(walk1, (5, 15, "KK")),
+        sleep=[BLANK] * 3 + patch(FOX_BODY, (3, 15, "D")),
+    )
+
+
+# Ördek --------------------------------------------------------------------------
+DUCK_BODY = [BLANK] * 3 + [
+    "............KKKK....",
+    "...........KOOOOK...",
+    "...........KOOOEOK..",
+    "...........KOOOOOYYK",
+    "...........KOOOOKKK.",
+    ".K.........KOOOOK...",
+    ".KK.KKKKKKKOOOOOK...",
+    ".KOKOOOOOOOOOOOOOK..",
+    "..KODDDDDDOOOOOOOK..",
+    "..KOODDDDDOOOOOOOK..",
+    "...KOOOOOOOOOOOOK...",
+    "....KKKKKKKKKKKK....",
+]
+DUCK_FEET_A = ["......KYYK..KYYK...."]
+DUCK_FEET_B = [".......KYYKKYYK....."]
+
+
+def duck_frames():
+    walk1 = DUCK_BODY + DUCK_FEET_A
+    return dict(
+        walk1=walk1,
+        walk2=DUCK_BODY + DUCK_FEET_B,
+        blink=patch(walk1, (5, 15, "D")),
+        happy=patch(walk1, (5, 15, "K")),
+        dangle=patch(DUCK_BODY + DUCK_FEET_B, (7, 16, "YY")),
+        sleep=patch(walk1, (5, 15, "D")),
+    )
+
+
+# Hamster ------------------------------------------------------------------------
+HAMSTER_BODY = [BLANK] * 6 + [
+    "......KK.....KK.....",
+    ".....KPKKKKKKPK.....",
+    "....KOOOOOOOOOOK....",
+    "...KOOOOOOOOEOOOK...",
+    "...KOOOOOOOWWWWPK...",
+    "..KOOOOOOOOWWWWWK...",
+    "..KOOOOOOOOWWWWWK...",
+    "..KDOOOOOOOWWWWK....",
+    "...KKKKKKKKKKKKK....",
+]
+HAMSTER_LEGS_A = ["....KPK....KPK......"]
+HAMSTER_LEGS_B = [".....KPK..KPK......."]
+
+
+def hamster_frames():
+    walk1 = HAMSTER_BODY + HAMSTER_LEGS_A
+    return dict(
+        walk1=walk1,
+        walk2=HAMSTER_BODY + HAMSTER_LEGS_B,
+        blink=patch(walk1, (9, 12, "D")),
+        happy=patch(walk1, (9, 12, "K"), (10, 11, "P")),
+        dangle=HAMSTER_BODY + HAMSTER_LEGS_B,
+        sleep=patch(walk1, (9, 12, "D")),
+    )
+
+
+# Ejderha ------------------------------------------------------------------------
+DRAGON_BODY = [
+    "..............K..K..",
+    ".............KYKKYK.",
+    ".............KOOOOK.",
+    "....KK......KOOOEOOK",
+    "...KDDK.....KOOOOOOE",
+    "..KDDDDK....KWWWWWK.",
+    "..KDDDDDKKKKKWWWWK..",
+    "KK.KDDDDOOOOOOWWWK..",
+    "KOK.KOOOOOOOOOOWWK..",
+    ".KOKKOOOOOOOOOOOOK..",
+    "..KOOOOOOOOOOOOOOK..",
+    "...KOOOOOOOOOOOOOK..",
+    "....KKKKKKKKKKKKK...",
+]
+DRAGON_WING_UP = ((2, 3, "KK"), (3, 2, "KDDK"), (4, 2, "KDDDK"), (5, 2, "KDDDDK"))
+
+
+def dragon_frames():
+    walk1 = DRAGON_BODY + LEGS_A
+    happy = patch(walk1, (3, 16, "K"))
+    return dict(
+        walk1=walk1,
+        walk2=patch(DRAGON_BODY + LEGS_B, *DRAGON_WING_UP),
+        blink=patch(walk1, (3, 16, "D")),
+        happy=happy,
+        happy2=patch(happy, *DRAGON_WING_UP),          # kanat çırpma
+        dangle=patch(walk1, *DRAGON_WING_UP),
+        sleep=patch(walk1, (3, 16, "D")),
+    )
+
+
 # --- Türler -------------------------------------------------------------------------
 SPECIES = {
     "kedi": dict(
         title="Kedi", frames=cat_frames(), speed=1.0, hop=False, step=4,
-        head=(16, 0), sleep_head=(16, 3),
+        head=(16, 0), sleep_head=(16, 3), hat=(15.5, 2), sleep_dy=3,
         desc="Meraklı ve biraz uykucu. İmlecini görünce dayanamaz, hemen peşine düşer.",
         traits=["Meraklı", "Uykucu", "Avcı"],
         stats={"Hız": 3, "Oyunculuk": 3, "Uykuculuk": 5},
@@ -211,7 +342,7 @@ SPECIES = {
         }),
     "kopek": dict(
         title="Köpek", frames=dog_frames(), speed=1.3, hop=False, step=3,
-        head=(14, 1), sleep_head=(14, 4),
+        head=(14, 1), sleep_head=(14, 4), hat=(14.5, 1), sleep_dy=3,
         desc="Enerjik ve sadık. Topu görünce yerinde duramaz, masaüstünün en hızlısı.",
         traits=["Sadık", "Enerjik", "Oyuncu"],
         stats={"Hız": 5, "Oyunculuk": 5, "Uykuculuk": 2},
@@ -225,7 +356,7 @@ SPECIES = {
         }),
     "tavsan": dict(
         title="Tavşan", frames=rabbit_frames(), speed=1.1, hop=True, step=4,
-        head=(16, 0), sleep_head=(16, 0),
+        head=(16, 0), sleep_head=(16, 0), hat=(15.5, 4), sleep_dy=0,
         desc="Yumuşacık ve tez canlı. Hiç yürümez, nereye giderse zıplayarak gider.",
         traits=["Zıpzıp", "Yumuşak", "Tatlı"],
         stats={"Hız": 4, "Oyunculuk": 4, "Uykuculuk": 3},
@@ -238,7 +369,7 @@ SPECIES = {
         }),
     "penguen": dict(
         title="Penguen", frames=penguin_frames(), speed=0.55, hop=False, step=6,
-        head=(8, 0), sleep_head=(8, 0),
+        head=(8, 0), sleep_head=(8, 0), hat=(8, 0), sleep_dy=0,
         desc="Sakin ve paytak. Hiç acele etmez ama gittiği her yere neşe götürür.",
         traits=["Sakin", "Paytak", "Soğukkanlı"],
         stats={"Hız": 1, "Oyunculuk": 3, "Uykuculuk": 3},
@@ -252,7 +383,7 @@ SPECIES = {
         }),
     "kurbaga": dict(
         title="Kurbağa", frames=frog_frames(), speed=0.9, hop=True, step=4,
-        head=(13, 4), sleep_head=(13, 4),
+        head=(13, 4), sleep_head=(13, 4), hat=(13.5, 5), sleep_dy=0,
         desc="Gölet sever, zıplamayı daha da çok sever. Ne zaman vıraklayacağı belli olmaz.",
         traits=["Zıplayan", "Gürültücü", "Neşeli"],
         stats={"Hız": 3, "Oyunculuk": 4, "Uykuculuk": 2},
@@ -263,8 +394,116 @@ SPECIES = {
             "Mavi":    {"O": "#3a86ff", "D": "#1d4ed8", "W": "#cfe3ff", "K": "#0b1f4d"},
             "Turuncu": {"O": "#ff9f1c", "D": "#e76f51", "W": "#ffe8c2", "K": "#4a2108"},
         }),
+    "tilki": dict(
+        title="Tilki", frames=fox_frames(), speed=1.15, hop=False, step=3,
+        head=(16, 0), sleep_head=(16, 3), hat=(16, 2), sleep_dy=3,
+        desc="Kurnaz ve çevik. Kabarık kuyruğuyla ortalıkta sessizce dolaşır.",
+        traits=["Kurnaz", "Çevik", "Sessiz"],
+        stats={"Hız": 4, "Oyunculuk": 3, "Uykuculuk": 3},
+        lines=["Hmm...", "Bir şey mi duydum?", "Kuyruğum kabarık!", "Psst!"],
+        names=["Kızıl", "Kurnaz", "Ateş", "Çakıl", "Sincap", "Pırıl"],
+        colors={
+            "Kızıl": {"O": "#f08a4b", "D": "#9c4a1f", "W": "#fff5ea"},
+            "Kutup": {"O": "#eef2f6", "D": "#9aa5b4", "W": "#ffffff", "K": "#3a3f4a"},
+            "Gümüş": {"O": "#7b8291", "D": "#3f4450", "W": "#e5e7eb", "K": "#1d2027"},
+        }),
+    "ordek": dict(
+        title="Ördek", frames=duck_frames(), speed=0.8, hop=False, step=4,
+        head=(14, 3), sleep_head=(14, 3), hat=(13.5, 3), sleep_dy=0,
+        desc="Neşeli ve geveze. Yürürken iki yana sallanır, gölet görünce dayanamaz.",
+        traits=["Geveze", "Neşeli", "Meraklı"],
+        stats={"Hız": 2, "Oyunculuk": 4, "Uykuculuk": 2},
+        lines=["Vak vak!", "Vak?", "Su nerede?", "Vaaak!"],
+        names=["Vakvak", "Limon", "Paytak", "Badi", "Tüy", "Dalgıç"],
+        colors={
+            "Beyaz": {"O": "#fdfdfd", "D": "#d6d6d6", "K": "#3a3a44"},
+            "Civciv": {"O": "#ffd84d", "D": "#f2b705", "K": "#5a4300", "Y": "#ff8c1a"},
+            "Kahve": {"O": "#b08968", "D": "#7f5539", "K": "#2e1d10"},
+        }),
+    "hamster": dict(
+        title="Hamster", frames=hamster_frames(), speed=0.9, hop=False, step=2,
+        head=(12, 6), sleep_head=(12, 6), hat=(10, 7), sleep_dy=0,
+        desc="Minik ve tombul. Yanaklarını doldurur, küçük adımlarla hızlı hızlı koşar.",
+        traits=["Minik", "Tombul", "Telaşlı"],
+        stats={"Hız": 3, "Oyunculuk": 3, "Uykuculuk": 4},
+        lines=["Çekirdek?", "Yanaklarım dolu!", "Tık tık tık", "Koşmam lazım!"],
+        names=["Fındık", "Tombi", "Mısır", "Pamuk", "Çekirdek", "Bıcır"],
+        colors={
+            "Altın": {"O": "#e8a95b", "D": "#c98536", "W": "#fff1dc"},
+            "Beyaz": {"O": "#f4f1ea", "D": "#d8d2c4", "W": "#ffffff", "K": "#3a3a44"},
+            "Gri":   {"O": "#9aa0a6", "D": "#6b7178", "W": "#eef0f2", "K": "#2a2d33"},
+        }),
+    "ejderha": dict(
+        title="Ejderha", frames=dragon_frames(), speed=1.1, hop=False, step=3, glide=True, rare=True,
+        head=(16, 0), sleep_head=(16, 0), hat=(15.5, 2), sleep_dy=0,
+        desc="Nadir bulunur. Zıpladığında kanatlarını açıp yavaşça süzülerek iner.",
+        traits=["Nadir", "Süzülür", "Asil"],
+        stats={"Hız": 4, "Oyunculuk": 4, "Uykuculuk": 4},
+        lines=["Rawr!", "Kanatlarım hazır!", "Hazine nerede?", "Fsss..."],
+        names=["Alev", "Kıvılcım", "Zümrüt", "Duman", "Yakut", "Gece"],
+        colors={
+            "Zümrüt": {"O": "#3fb37f", "D": "#2a7f5a", "W": "#d9f7c6", "Y": "#ffcf56"},
+            "Ateş":   {"O": "#e4572e", "D": "#a63a1f", "W": "#ffd29d", "Y": "#ffd166"},
+            "Gece":   {"O": "#4b3f8f", "D": "#2e2760", "W": "#c7b8ff", "Y": "#e0e0e0", "E": "#ffd166"},
+        }),
 }
-SPECIES_ORDER = ["kedi", "kopek", "tavsan", "penguen", "kurbaga"]
+SPECIES_ORDER = ["kedi", "kopek", "tavsan", "penguen", "kurbaga", "tilki", "ordek", "hamster", "ejderha"]
+DRAGON_UNLOCK = 8          # ejderha için gereken başarım sayısı
+
+# İngilizce metinler (Türkçe kayıt anahtarları değişmez)
+SPECIES_EN = {
+    "kedi": dict(title="Cat", desc="Curious and a little sleepy. Can't resist chasing your cursor.",
+                 traits=["Curious", "Sleepy", "Hunter"], lines=["Meow!", "Purrr...", "Where's the mouse?", "Mrrp?"],
+                 names=["Biscuit", "Shadow", "Mochi", "Pepper", "Olive", "Ginger"]),
+    "kopek": dict(title="Dog", desc="Energetic and loyal. Goes wild for the ball, the fastest buddy around.",
+                  traits=["Loyal", "Energetic", "Playful"],
+                  lines=["Woof!", "Throw the ball?", "Tail is wagging!", "Walk?"],
+                  names=["Buddy", "Max", "Rocky", "Cookie", "Bean", "Rex"]),
+    "tavsan": dict(title="Bunny", desc="Soft and quick. Never walks, always hops.",
+                   traits=["Hoppy", "Fluffy", "Sweet"], lines=["Got a carrot?", "Hop hop!", "My nose itches", "Hop!"],
+                   names=["Carrot", "Fluff", "Cloud", "Pompom", "Snowflake", "Clover"]),
+    "penguen": dict(title="Penguin", desc="Calm and waddly. Never in a hurry, but brings joy wherever it goes.",
+                    traits=["Calm", "Waddly", "Cool"], lines=["Ice cold!", "Waddle waddle...", "Fish?", "Brr!"],
+                    names=["Pingu", "Frost", "Tux", "Waddles", "Polar", "Pebble"]),
+    "kurbaga": dict(title="Frog", desc="Loves ponds, loves hopping even more. You never know when it'll croak.",
+                    traits=["Hopper", "Noisy", "Cheerful"], lines=["Ribbit!", "I saw a fly!", "Ribbiiit", "Hop hop!"],
+                    names=["Ribbit", "Kermie", "Leaf", "Bubbles", "Pea", "Lily"]),
+    "tilki": dict(title="Fox", desc="Clever and nimble. Sneaks around quietly with its fluffy tail.",
+                  traits=["Clever", "Nimble", "Quiet"],
+                  lines=["Hmm...", "Did I hear something?", "Fluffy tail!", "Psst!"],
+                  names=["Rusty", "Scout", "Ember", "Pebble", "Maple", "Sly"]),
+    "ordek": dict(title="Duck", desc="Cheerful and chatty. Wobbles side to side and can't resist a pond.",
+                  traits=["Chatty", "Cheerful", "Curious"],
+                  lines=["Quack quack!", "Quack?", "Where's the water?", "Quaaack!"],
+                  names=["Quackers", "Lemon", "Waddle", "Puddle", "Feather", "Dabble"]),
+    "hamster": dict(title="Hamster", desc="Tiny and chubby. Stuffs its cheeks and scurries around in tiny steps.",
+                    traits=["Tiny", "Chubby", "Busy"],
+                    lines=["Seeds?", "Cheeks are full!", "Tik tik tik", "Gotta run!"],
+                    names=["Peanut", "Chubby", "Corn", "Nibbles", "Seed", "Squeak"]),
+    "ejderha": dict(title="Dragon", desc="Rare. When it jumps, it spreads its wings and glides down slowly.",
+                    traits=["Rare", "Glider", "Noble"],
+                    lines=["Rawr!", "Wings ready!", "Where's the treasure?", "Fsss..."],
+                    names=["Blaze", "Spark", "Emerald", "Smoke", "Ruby", "Nyx"]),
+}
+COLOR_EN = {
+    "Turuncu": "Orange", "Siyah": "Black", "Gri": "Gray", "Beyaz": "White", "Tekir": "Tabby",
+    "Altın": "Golden", "Çikolata": "Chocolate", "Dalmaçyalı": "Dalmatian", "Husky": "Husky",
+    "Kahve": "Brown", "Klasik": "Classic", "Mavi": "Blue", "Pembe": "Pink", "Yeşil": "Green",
+    "Kızıl": "Red", "Kutup": "Arctic", "Gümüş": "Silver", "Civciv": "Duckling",
+    "Zümrüt": "Emerald", "Ateş": "Fire", "Gece": "Night",
+}
+
+# Seviyeye göre gelişim: (başlangıç seviyesi, ad, boyut çarpanı)
+EVOLUTION = [(1, "Yavru", 0.75), (5, "Yetişkin", 1.0), (10, "Efsane", 1.0)]
+
+
+def evolution(level):
+    """Seviyenin gelişim aşaması: (sıra, ad, boyut çarpanı)."""
+    stage = 0
+    for i, (lvl, _, _) in enumerate(EVOLUTION):
+        if level >= lvl:
+            stage = i
+    return (stage,) + EVOLUTION[stage][1:]
 
 MOOD_LINES = {
     "hungry": ["Acıktım!", "Mama?", "Karnım guruldadı..."],
@@ -274,6 +513,73 @@ MOOD_LINES = {
     "missed": ["Seni özledim!", "Neredeydin?", "Geri geldin!"],
     "thrown": ["Wiiii!", "Uçuyorum!", "Aaaa!"],
     "woke": ["Hı? Ne oldu?", "Uyuyordum...", "Günaydın!"],
+    "meet": ["Selam {name}!", "{name}! Oynayalım mı?", "Merhaba {name}"],
+    "grow": ["Büyüdüm!", "Bak ne kadar büyüdüm!"],
+    "legend": ["Efsane oldum!", "Artık bir efsaneyim!"],
+}
+MOOD_LINES_EN = {
+    "hungry": ["I'm hungry!", "Food?", "My tummy is rumbling..."],
+    "tired": ["I'm sleepy...", "Yawn...", "Quick nap?"],
+    "sad": ["A little attention?", "I'm bored...", "Do you love me?"],
+    "happy": ["I love you!", "So happy!", "♥ ♥ ♥"],
+    "missed": ["I missed you!", "Where were you?", "You're back!"],
+    "thrown": ["Wheee!", "I'm flying!", "Aaaa!"],
+    "woke": ["Huh? What?", "I was sleeping...", "Good morning!"],
+    "meet": ["Hi {name}!", "{name}! Wanna play?", "Hello {name}"],
+    "grow": ["I grew up!", "Look how big I got!"],
+    "legend": ["I'm a legend now!", "Legendary!"],
+}
+
+# --- Aksesuarlar --------------------------------------------------------------------
+# gereksinim: ("level", n) en yüksek dost seviyesi, ("ach", n) açık başarım sayısı, ("month", ay)
+ACCESSORIES = {
+    "silindir": dict(name="Silindir şapka", req=("level", 2), rows=[
+        "..KKKK..",
+        "..KHHK..",
+        "..KHHK..",
+        "..KNNK..",
+        "KKKKKKKK",
+    ]),
+    "fiyonk": dict(name="Fiyonk", req=("level", 3), rows=[
+        "KK...KK",
+        "KNK.KNK",
+        "KNNKNNK",
+        "KNK.KNK",
+        "KK...KK",
+    ]),
+    "cicek": dict(name="Çiçek", req=("level", 4), rows=[
+        ".N.N.",
+        "NNCNN",
+        ".NNN.",
+        "..G..",
+    ]),
+    "parti": dict(name="Parti şapkası", req=("ach", 6), rows=[
+        "..C..",
+        "..M..",
+        ".MCM.",
+        ".CMC.",
+        "MCMCM",
+    ]),
+    "tac": dict(name="Taç", req=("level", 10), rows=[
+        "C..C..C",
+        "CC.C.CC",
+        "CCCCCCC",
+        "CRCNCRC",
+    ]),
+    "cadi": dict(name="Cadı şapkası", req=("month", 10), rows=[
+        "...M...",
+        "..MMM..",
+        "..MMM..",
+        ".MCCCM.",
+        "MMMMMMM",
+    ]),
+    "noel": dict(name="Noel şapkası", req=("month", 12), rows=[
+        ".....SS",
+        "...RRRS",
+        "..RRRR.",
+        ".RRRRRR",
+        "SSSSSSS",
+    ]),
 }
 
 
@@ -313,6 +619,37 @@ EFFECTS = {
         ".KKBBBBBK.KK",
         "...KKKKK....",
     ],
+    "snow": [
+        "..S..",
+        "S.S.S",
+        ".SSS.",
+        "S.S.S",
+        "..S..",
+    ],
+    "leaf": [
+        "...AA",
+        "..AAA",
+        ".AAA.",
+        "AAA..",
+        "T....",
+    ],
+    "petal": [
+        ".N.",
+        "NNN",
+        ".N.",
+    ],
+    "firefly": [
+        ".C.",
+        "CCC",
+        ".C.",
+    ],
+    "rock": [
+        ".KKKK.",
+        "KQQQQK",
+        "KQSQQK",
+        "KQQQQK",
+        ".KKKK.",
+    ],
     "ball": [
         "..KKKK..",
         ".KRRSSK.",
@@ -336,6 +673,40 @@ EFFECTS = {
 
 # --- Arayüz ikonları (tek renk piksel ikonlar, X: ana renk) ---------------------------
 UI_ICONS = {
+    "home": [
+        "....X....",
+        "...XXX...",
+        "..XXXXX..",
+        ".XXXXXXX.",
+        "XXXXXXXXX",
+        ".XXX.XXX.",
+        ".XXX.XXX.",
+    ],
+    "hat": [
+        "..XXXXX..",
+        "..XXXXX..",
+        "..XXXXX..",
+        "..XXXXX..",
+        "XXXXXXXXX",
+    ],
+    "flame": [
+        "...X...",
+        "..XX...",
+        "..XXX..",
+        ".XXXX.X",
+        ".XXXXXX",
+        "XXX.XXX",
+        "XX...XX",
+        ".XX.XX.",
+    ],
+    "gamepad": [
+        ".XXXXXXXXX.",
+        "XXX.XXXXXXX",
+        "X...XXX.X.X",
+        "XXX.XXXXXXX",
+        "XXXXXXXXXXX",
+        "XX.......XX",
+    ],
     "paw": [
         "..XX.XX..",
         "..XX.XX..",

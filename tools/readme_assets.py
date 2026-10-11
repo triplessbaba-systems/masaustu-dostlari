@@ -15,7 +15,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from dostlar import APP_NAME                                         # noqa: E402
-from dostlar.gfx import font, make_logo, pixel_image, rgba, rounded  # noqa: E402
+from dostlar.gfx import font, make_logo, pixel_image, rgba, rounded, sprite_image  # noqa: E402
 from dostlar.sprites import BASE_PALETTE, EFFECTS, SPECIES, SPECIES_ORDER, first_color, palette  # noqa: E402
 
 ASSETS = os.path.join(ROOT, "assets")
@@ -25,11 +25,8 @@ def backdrop(w, h):
     return Image.new("RGBA", (w, h), rgba("#14121f"))
 
 
-def sprite(species, color, frame="walk1", scale=6, facing=1):
-    rows = SPECIES[species]["frames"][frame]
-    if facing == -1:
-        rows = [r[::-1] for r in rows]
-    return pixel_image(rows, palette(species, color), scale)
+def sprite(species, color, frame="walk1", scale=6, facing=1, acc=None):
+    return sprite_image(species, color, frame, facing, scale, acc)
 
 
 def banner():
@@ -47,11 +44,13 @@ def banner():
 
     ground = 350
     d.rectangle((0, ground, w, h), fill=rgba("#1c1a2b"))
-    lineup = [("kedi", "Turuncu", "walk1", 1), ("kopek", "Altın", "happy2", 1), ("tavsan", "Beyaz", "walk1", -1),
-              ("penguen", "Klasik", "walk1", 1), ("kurbaga", "Yeşil", "happy", -1)]
+    lineup = [("kedi", "Turuncu", "walk1", 1, "silindir"), ("tilki", "Kızıl", "walk1", 1, None),
+              ("kopek", "Altın", "happy2", 1, None), ("ordek", "Civciv", "walk1", -1, "cicek"),
+              ("hamster", "Altın", "walk1", 1, None), ("penguen", "Klasik", "walk1", -1, "cadi"),
+              ("ejderha", "Zümrüt", "happy2", -1, "tac")]
     step = w / (len(lineup) + 1)
-    for i, (sp, col, fr, face) in enumerate(lineup):
-        s = sprite(sp, col, fr, 6, face)
+    for i, (sp, col, fr, face, acc) in enumerate(lineup):
+        s = sprite(sp, col, fr, 5, face, acc)
         img.alpha_composite(s, (int(step * (i + 1) - s.width / 2), ground - s.height + 6))
     img.convert("RGB").save(os.path.join(ASSETS, "banner.png"), optimize=True)
 
@@ -70,16 +69,22 @@ def demo_gif():
     for i, col in enumerate(("#ff5d73", "#ffd166", "#4ade80")):
         d.ellipse((win[0] + 12 + i * 16, win[1] + 7, win[0] + 22 + i * 16, win[1] + 17), fill=rgba(col))
 
-    actors = [  # tür, renk, başlangıç x, hız, zemin
-        ("kedi", "Siyah", 40, 2.2, taskbar), ("kopek", "Husky", 300, -3.4, taskbar),
-        ("tavsan", "Kahve", 120, 2.6, taskbar), ("penguen", "Mavi", 600, -1.2, taskbar),
-        ("kurbaga", "Turuncu", 470, 1.6, win[1]),
+    actors = [  # tür, renk, başlangıç x, hız, zemin, aksesuar
+        ("kedi", "Siyah", 40, 2.2, taskbar, "cadi"), ("kopek", "Husky", 300, -3.4, taskbar, None),
+        ("tavsan", "Kahve", 120, 2.6, taskbar, None), ("ordek", "Beyaz", 600, -1.4, taskbar, "fiyonk"),
+        ("tilki", "Kızıl", 470, 1.8, win[1], None), ("hamster", "Gri", 700, -1.0, taskbar, None),
     ]
+    leaves = [(random.uniform(0, w), random.uniform(0, taskbar), random.uniform(1.5, 3), random.uniform(0, 6))
+              for _ in range(10)]
+    leaf = pixel_image(EFFECTS["leaf"], BASE_PALETTE, 2)
     frames = []
     n = 48
     for f in range(n):
         img = bg.copy()
-        for sp, col, x0, v, ground in actors:
+        for lx, ly, lv, ph in leaves:
+            y = (ly + lv * f * 2) % taskbar
+            img.alpha_composite(leaf, (int((lx + math.sin(ph + f * 0.3) * 8) % w), int(y)))
+        for sp, col, x0, v, ground, acc in actors:
             info = SPECIES[sp]
             if ground == win[1]:
                 lo, hi = win[0], win[2] - 20 * scale
@@ -95,7 +100,7 @@ def demo_gif():
             else:
                 lift = 0
                 frame = "walk1" if (f // 2) % 2 == 0 else "walk2"
-            s = sprite(sp, col, frame, scale, facing)
+            s = sprite(sp, col, frame, scale, facing, acc)
             img.alpha_composite(s, (int(x), int(ground - s.height - lift)))
         if 10 <= f < 30:
             heart = pixel_image(EFFECTS["heart"], BASE_PALETTE, 2)
@@ -114,18 +119,18 @@ def demo_gif():
 def pets_sheet():
     scale = 4
     cols = max(len(SPECIES[s]["colors"]) for s in SPECIES_ORDER)
-    cw, ch = 20 * scale + 40, 16 * scale + 44
+    cw, ch = 20 * scale + 40, 21 * scale + 26
     w, h = cols * cw + 180, len(SPECIES_ORDER) * ch + 30
     img = backdrop(w, h)
     d = ImageDraw.Draw(img)
     for r, sp in enumerate(SPECIES_ORDER):
         y = 20 + r * ch
-        d.text((24, y + 26), SPECIES[sp]["title"], font=font(20), fill=rgba("#f4f2ff"))
+        d.text((24, y + 46), SPECIES[sp]["title"], font=font(20), fill=rgba("#f4f2ff"))
         for c, col in enumerate(SPECIES[sp]["colors"]):
             x = 170 + c * cw
             img.alpha_composite(sprite(sp, col, "walk1", scale), (x + 20, y))
             label = font(12, bold=False)
-            d.text((x + 20 + (20 * scale - d.textlength(col, font=label)) / 2, y + 16 * scale + 6),
+            d.text((x + 20 + (20 * scale - d.textlength(col, font=label)) / 2, y + 21 * scale + 2),
                    col, font=label, fill=rgba("#a7a3c9"))
     img.convert("RGB").save(os.path.join(ASSETS, "pets.png"), optimize=True)
 

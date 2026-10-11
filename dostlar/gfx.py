@@ -4,7 +4,7 @@ import random
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-from .sprites import UI_ICONS
+from .sprites import ACCESSORIES, BASE_PALETTE, SPECIES, UI_ICONS, palette
 
 LOGO_BG = "#ffb703"
 LOGO_FG = "#1b1b2a"
@@ -16,6 +16,10 @@ STAGES = {
     "tavsan":  ("#62b6d9", "#a8dcc0", "#5c9c6c", "clouds"),
     "penguen": ("#5d9ad8", "#cfe6ff", "#f2f8ff", "snow"),
     "kurbaga": ("#2d6b70", "#5ea596", "#2f6a4f", "pond"),
+    "tilki":   ("#e9a15b", "#8a4f3d", "#5b3a2e", "leaves"),
+    "ordek":   ("#7cc6e8", "#c3ecf5", "#4f9d69", "pond"),
+    "hamster": ("#f6d6ad", "#e3b98a", "#a8754a", "seeds"),
+    "ejderha": ("#2b1a3d", "#7a2e3a", "#3b2433", "embers"),
 }
 
 
@@ -101,6 +105,26 @@ def pixel_image(rows, pal, scale):
     return img.resize((w * scale, h * scale), Image.NEAREST) if scale > 1 else img
 
 
+TOP = 5        # aksesuarlar için sprite'ın üstüne eklenen boş satır
+
+
+def sprite_image(species, color, frame, facing, scale, acc=None):
+    """Dostu (varsa aksesuarıyla) çiz. Her zaman 20 x (16 + TOP) piksel."""
+    sp = SPECIES[species]
+    img = Image.new("RGBA", (20, 16 + TOP), (0, 0, 0, 0))
+    img.alpha_composite(pixel_image(sp["frames"][frame], palette(species, color), 1), (0, TOP))
+    if acc in ACCESSORIES:
+        a = pixel_image(ACCESSORIES[acc]["rows"], BASE_PALETTE, 1)
+        cx, row = sp["hat"]
+        if frame == "sleep":
+            row += sp.get("sleep_dy", 0)
+        x = min(max(int(round(cx - a.width / 2)), 0), 20 - a.width)
+        img.alpha_composite(a, (x, max(0, TOP + row - a.height + 1)))
+    if facing == -1:
+        img = img.transpose(Image.FLIP_LEFT_RIGHT)
+    return img.resize((20 * scale, (16 + TOP) * scale), Image.NEAREST)
+
+
 def ui_icon(name, color, scale):
     return pixel_image(UI_ICONS[name], {"X": color}, scale)
 
@@ -176,6 +200,15 @@ def stage_image(species, w, h, r, ui, ground_ratio=0.78):
             for ox, oy, rad in ((-18, 4, 14), (0, -6, 20), (20, 4, 15), (2, 8, 16)):
                 dot(w * cx + ox * s * ui * k, h * cy + oy * s * ui * k, rad * s * ui * k,
                     (255, 255, 255, 215))
+    elif decor == "leaves":
+        for _ in range(int(16 * w / 320)):
+            x, y = rnd.randrange(w), rnd.randrange(max(1, gy))
+            col = rnd.choice([(231, 111, 81), (244, 162, 97), (192, 57, 43)])
+            d.ellipse((x - 3 * ui, y - 2 * ui, x + 3 * ui, y + 2 * ui), fill=col + (220,))
+    elif decor == "embers":
+        for _ in range(int(26 * w / 320)):
+            dot(rnd.randrange(w), rnd.randrange(max(1, gy)), rnd.choice([1, 1, 2]) * ui,
+                (255, rnd.randint(120, 200), 60, rnd.randint(120, 230)))
     elif decor == "snow":
         for _ in range(int(40 * w / 320)):
             dot(rnd.randrange(w), rnd.randrange(max(1, gy)), rnd.choice([1, 2, 2, 3]) * ui,
@@ -189,6 +222,10 @@ def stage_image(species, w, h, r, ui, ground_ratio=0.78):
         for x in (0.15, 0.85):
             d.ellipse((w * x - 26 * ui * k, gy + 22 * ui * k, w * x + 26 * ui * k, gy + 34 * ui * k),
                       fill=(70, 160, 90, 255))
+    elif decor == "seeds":
+        for _ in range(int(14 * w / 320)):
+            x, y = rnd.randrange(w), gy + rnd.randrange(int(8 * ui * k), int(40 * ui * k))
+            d.ellipse((x - 2 * ui, y - 3 * ui, x + 2 * ui, y + 3 * ui), fill=(92, 64, 40, 255))
     elif decor == "snow":
         for x in (0.12, 0.88):
             d.ellipse((w * x - 30 * ui * k, gy + 14 * ui * k, w * x + 30 * ui * k, gy + 30 * ui * k),

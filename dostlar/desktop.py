@@ -4,7 +4,9 @@ import random
 import time
 import tkinter as tk
 
-from .sprites import MOOD_LINES, SPECIES
+from .gfx import TOP
+from .i18n import _, mood, sp_text
+from .sprites import SPECIES, evolution
 from .store import xp_needed
 
 KEY = "#ff00ff"      # bu renk pencerede şeffaf olur
@@ -12,7 +14,8 @@ KEY = "#ff00ff"      # bu renk pencerede şeffaf olur
 STATUS_TEXT = {
     "walk": "Geziyor", "idle": "Dinleniyor", "sleep": "Uyuyor", "happy": "Mutlu",
     "eat": "Yemek yiyor", "fall": "Havada", "drag": "Havada", "chase": "İmleci kovalıyor",
-    "food": "Mamaya koşuyor", "play": "Top oynuyor",
+    "food": "Mamaya koşuyor", "play": "Top oynuyor", "follow": "Arkadaşını kovalıyor",
+    "game": "Oyunda",
 }
 
 
@@ -39,7 +42,7 @@ class Bubble:
         self.life = 0
         self.w = self.h = 0
 
-    def show(self, text):
+    def show(self, text, life=75):
         img = self.app.bubble_img(text)
         if self.win is None:
             self.win, self.c = transparent_window(self.app.root, 10, 10)
@@ -47,7 +50,7 @@ class Bubble:
         self.w, self.h = img.width(), img.height()
         self.c.config(width=self.w, height=self.h)
         self.c.itemconfig(self.item, image=img)
-        self.life = 75
+        self.life = life
         if not self.app.hidden:
             self.win.deiconify()
 
@@ -59,7 +62,9 @@ class Bubble:
             self.win.withdraw()
             return
         hx, hy = pet.head_pos()
-        self.win.geometry(f"+{int(pet.x + hx - self.w / 2)}+{int(pet.y + hy - self.h - pet.app.s)}")
+        if pet.acc:
+            hy -= TOP * pet.scale
+        self.win.geometry(f"+{int(pet.x + hx - self.w / 2)}+{int(pet.y + hy - self.h - pet.scale)}")
 
     def hide(self):
         self.life = 0
@@ -80,10 +85,12 @@ class Fish:
         self.w, self.h = 12 * s, 7 * s
         self.win, c = transparent_window(app.root, self.w, self.h)
         c.create_image(0, 0, anchor="nw", image=app.effect("fish", s))
-        l, t, r, b = app.area
-        self.x = float(x - self.w / 2 if x is not None else random.randint(l + self.w, r - 2 * self.w))
-        self.x = min(max(self.x, l), r - self.w)
-        self.y = float(t)
+        l, t, r, b = app.area if x is None else app.bounds
+        if x is None:
+            x = random.randint(l + self.w, r - 2 * self.w)
+        bl, bt, br, bb = app.bounds
+        self.x = float(min(max(x - self.w / 2, bl), br - self.w))
+        self.y = float(app.top_at(self.cx))
         self.vy = 0.0
         self.landed = False
         self.place()
@@ -94,7 +101,7 @@ class Fish:
 
     def tick(self):
         if not self.landed:
-            ground = self.app.area[3] - self.h
+            ground = self.app.floor_at(self.cx) - self.h
             self.vy += 0.3 * self.app.s
             self.y += self.vy
             if self.y >= ground:
@@ -131,7 +138,7 @@ class Ball:
         return self.x + self.size / 2
 
     def near_floor(self):
-        return self.y + self.size >= self.app.area[3] - 4 * self.app.s
+        return self.y + self.size >= self.app.floor_at(self.cx) - 4 * self.app.s
 
     def kick(self, direction):
         s = self.app.s
@@ -141,8 +148,8 @@ class Ball:
 
     def tick(self):
         s = self.app.s
-        l, t, r, b = self.app.area
-        floor = b - self.size
+        l, t, r, b = self.app.bounds
+        floor = self.app.floor_at(self.cx) - self.size
         self.vy += 0.35 * s
         self.x += self.vx
         self.y += self.vy
@@ -176,55 +183,83 @@ class Pet:
         self.species, self.color, self.name = data["species"], data["color"], data["name"]
         self.food, self.joy, self.energy = data["food"], data["joy"], data["energy"]
         self.xp, self.level, self.adopted = data["xp"], data["level"], data["adopted"]
+        self.acc = data.get("acc")
         self.sp = SPECIES[self.species]
-
-        s = app.s
-        self.top_pad = 10 * s                 # kalp / Z efektleri için üst boşluk
-        self.W, self.H = 20 * s, 16 * s + self.top_pad
-        self.win, self.c = transparent_window(app.root, self.W, self.H)
-        self.sprite = self.c.create_image(0, self.top_pad, anchor="nw")
-        self.cur = None
         self.bubble = Bubble(app)
+        self.win = None
 
         l, t, r, b = app.area
-        self.x = float(random.randint(l, r - self.W))
-        self.y = float(t)
         self.facing = random.choice([-1, 1])
-        self.vx = self.facing * s * 0.5
+        self.build()
+        self.x = float(random.randint(l, r - self.W))
+        self.y = float(t - self.top_pad)
+        self.vx = self.facing * self.scale * 0.5
         self.vy = 0.0
         self.px, self.py = self.x, self.y
-        self.speed = s * 0.5
+        self.speed = self.scale * 0.5
         self.state, self.timer, self.t = "fall", 0, 0
         self.moving = self.airborne = False
-        self.surface = b                      # üzerinde durduğu yüzeyin y'si
+        self.surface = app.floor_at(self.x + self.W / 2)
         self.on_window = False
-        self.particles = []
         self.drag = None
         self.dragging = False
         self.kick_cd = 0
+        self.social_cd = random.randint(25 * 10, 25 * 30)
+        self.follow_id = None
         self.last_pet = 0.0
         self.hungry_notified = False
         self.next_chat = random.randint(25 * 20, 25 * 60)
+        self.place()
 
+    # -- pencere --
+    @property
+    def stage(self):
+        return evolution(self.level)
+
+    def build(self):
+        """Pencereyi şu anki gelişim boyutuna göre kur."""
+        self.scale = max(2, round(self.app.s * self.stage[2]))
+        s = self.scale
+        self.top_pad = 10 * s                 # kalp / Z / şapka için üst boşluk
+        self.W, self.H = 20 * s, 16 * s + self.top_pad
+        self.win, self.c = transparent_window(self.app.root, self.W, self.H)
+        self.sprite = self.c.create_image(0, self.top_pad - TOP * s, anchor="nw")
+        self.cur = None
+        self.particles = []
         self.c.bind("<ButtonPress-1>", self.on_press)
         self.c.bind("<B1-Motion>", self.on_motion)
         self.c.bind("<ButtonRelease-1>", self.on_release)
         self.c.bind("<Button-3>", self.on_right)
-        self.place()
-        if app.hidden:
+        if self.app.hidden:
             self.win.withdraw()
+
+    def rebuild(self):
+        """Büyüyünce pencereyi yeniden kur; ayaklar aynı yerde kalsın."""
+        bottom, cx = self.y + self.H, self.x + self.W / 2
+        self.win.destroy()
+        self.build()
+        self.x, self.y = cx - self.W / 2, bottom - self.H
+        self.place()
 
     def to_dict(self):
         return {"id": self.id, "species": self.species, "color": self.color, "name": self.name,
                 "food": round(self.food, 2), "joy": round(self.joy, 2), "energy": round(self.energy, 2),
-                "xp": self.xp, "level": self.level, "adopted": self.adopted}
+                "xp": self.xp, "level": self.level, "acc": self.acc, "adopted": self.adopted}
 
     @property
     def status(self):
-        text = STATUS_TEXT.get(self.state, "")
+        text = _(STATUS_TEXT.get(self.state, ""))
         if self.food < 25 and self.state not in ("eat", "food"):
-            text += ", aç"
+            text += ", " + _("aç")
         return text
+
+    @property
+    def cx(self):
+        return self.x + self.W / 2
+
+    def set_acc(self, acc):
+        self.acc = acc
+        self.cur = None
 
     # -- ihtiyaçlar (saniyede bir) --
     def second(self):
@@ -234,26 +269,39 @@ class Pet:
         self.energy = clamp(self.energy + (0.12 if sleeping else -0.01))
         if self.food < 20 and not self.hungry_notified:
             self.hungry_notified = True
-            self.say(random.choice(MOOD_LINES["hungry"]))
+            self.say(mood("hungry"))
             self.app.notify_hungry(self)
         elif self.food > 50:
             self.hungry_notified = False
 
     def add_xp(self, n):
         self.xp += n
+        before = self.stage[0]
+        leveled = False
         while self.xp >= xp_needed(self.level):
             self.xp -= xp_needed(self.level)
             self.level += 1
-            self.say(f"Seviye {self.level}!")
-            self.spawn("star")
+            leveled = True
             self.app.on_level_up(self)
+        if not leveled:
+            return
+        stage = self.stage[0]
+        if stage != before:
+            self.rebuild()
+            self.say(mood("legend" if stage == 2 else "grow"))
+            self.app.on_evolve(self)
+        else:
+            self.say(_("Seviye {n}!").format(n=self.level))
+        self.spawn("star")
 
     # -- durumlar --
     def set_state(self, state, timer=0):
+        if self.state == "game" and state != "idle":
+            return                                  # oyundayken başka işe karışma
         self.state, self.timer = state, timer
 
     def choose(self):
-        s, app = self.app.s, self.app
+        s, app = self.scale, self.app
         settings = app.settings
         if app.fish:
             self.set_state("food", 400)
@@ -283,25 +331,27 @@ class Pet:
             self.set_state("idle", random.randint(40, 120))
 
     def jump(self):
-        s = self.app.s
-        self.vy = -s * random.uniform(2.5, 4)
+        s = self.scale
+        lift = 1.6 if self.sp.get("glide") else 1.0
+        self.vy = -s * random.uniform(2.5, 4) * lift
         self.vx = self.facing * s * random.uniform(0.5, 1.5)
         self.energy = clamp(self.energy - 0.5)
         self.set_state("fall")
 
     def call_to(self, x):
         """Ekranın tepesinden belirli bir noktaya düşür."""
-        l, t, r, b = self.app.area
+        l, t, r, b = self.app.bounds
         self.x = float(min(max(x - self.W / 2, l), r - self.W))
-        self.y = float(t - self.top_pad)
+        self.y = float(self.app.top_at(x) - self.top_pad)
         self.vx, self.vy = 0.0, 0.0
         self.on_window = False
-        self.set_state("fall")
+        if self.state != "game":
+            self.set_state("fall")
 
     # -- etkileşimler --
     def pet(self):
         if self.state == "sleep":
-            self.say(random.choice(MOOD_LINES["woke"]))
+            self.say(mood("woke"))
         now = time.time()
         if now - self.last_pet > 0.4:             # tık spamı sayılmasın
             self.last_pet = now
@@ -309,8 +359,9 @@ class Pet:
             self.add_xp(2)
             self.app.stat("pets")
             if random.random() < 0.25:
-                self.say(random.choice(MOOD_LINES["happy"]))
-        self.set_state("happy", 50)
+                self.say(mood("happy"))
+        if self.state != "game":
+            self.set_state("happy", 50)
         self.spawn("heart")
 
     def eat(self, fish):
@@ -336,21 +387,40 @@ class Pet:
         self.set_state("happy", 50)
         self.spawn("heart")
 
+    def meet(self, other, kind):
+        """Başka bir dostla karşılaşma: selamlaşma, kovalamaca ya da birlikte uyuma."""
+        self.social_cd = random.randint(25 * 40, 25 * 90)
+        self.facing = 1 if other.cx > self.cx else -1
+        self.joy = clamp(self.joy + 4)
+        self.add_xp(2)
+        if kind == "hello":
+            self.set_state("happy", 40)
+            self.spawn("heart")
+        elif kind == "chase":
+            self.follow_id = other.id
+            self.set_state("follow", 160)
+        elif kind == "flee":
+            self.facing = -self.facing
+            self.speed = self.scale * 1.4 * self.sp["speed"]
+            self.set_state("walk", 70)
+        elif kind == "nap":
+            self.set_state("sleep", random.randint(400, 700))
+
     def say(self, text):
         if self.app.settings["bubbles"]:
             self.bubble.show(text)
 
     def chatter(self):
         if self.food < 25:
-            line = random.choice(MOOD_LINES["hungry"])
+            line = mood("hungry")
         elif self.energy < 20:
-            line = random.choice(MOOD_LINES["tired"])
+            line = mood("tired")
         elif self.joy < 25:
-            line = random.choice(MOOD_LINES["sad"])
+            line = mood("sad")
         elif self.joy > 80 and random.random() < 0.3:
-            line = random.choice(MOOD_LINES["happy"])
+            line = mood("happy")
         else:
-            line = random.choice(self.sp["lines"])
+            line = random.choice(sp_text(self.species, "lines"))
         self.say(line)
 
     def target(self):
@@ -359,21 +429,23 @@ class Pet:
         if self.state == "chase":
             return app.root.winfo_pointerx(), True
         if self.state == "food" and app.fish:
-            f = min(app.fish, key=lambda f: abs(f.cx - (self.x + self.W / 2)))
+            f = min(app.fish, key=lambda f: abs(f.cx - self.cx))
             return f.cx, f.landed
         if self.state == "play" and app.balls:
             return app.balls[0].cx, True
+        if self.state == "follow":
+            other = app.pet_by_id(self.follow_id)
+            if other and abs(other.surface - self.surface) < 6 * self.scale:
+                return other.cx, True
         return None
 
     # -- zemin / pencere platformları --
-    def landing(self, prev_bottom, new_bottom):
-        cx = self.x + self.W / 2
-        floor = self.app.area[3]
+    def landing(self, prev_bottom, new_bottom, floor):
         best = None
         if self.app.settings["walk_windows"]:
-            margin = 2 * self.app.s
+            margin = 2 * self.scale
             for py, x0, x1 in self.app.platforms:
-                if x0 + margin <= cx <= x1 - margin and prev_bottom - 1 <= py <= new_bottom:
+                if x0 + margin <= self.cx <= x1 - margin and prev_bottom - 1 <= py <= new_bottom:
                     if best is None or py < best:
                         best = py
         if best is None and new_bottom >= floor:
@@ -383,35 +455,43 @@ class Pet:
     def platform_near(self):
         if not self.app.settings["walk_windows"]:
             return None
-        cx = self.x + self.W / 2
         best = None
         for py, x0, x1 in self.app.platforms:
-            if x0 <= cx <= x1 and abs(py - self.surface) <= 12 * self.app.s:
+            if x0 <= self.cx <= x1 and abs(py - self.surface) <= 12 * self.scale:
                 if best is None or abs(py - self.surface) < abs(best - self.surface):
                     best = py
         return best
 
+    def start_fall(self):
+        self.on_window = False
+        self.vx, self.vy = self.facing * self.scale * 0.6, 0.0
+        if self.state != "game":
+            self.set_state("fall")
+
     # -- ana döngü --
     def tick(self):
-        s = self.app.s
-        l, t, r, b = self.app.area
+        s = self.scale
+        l, t, r, b = self.app.bounds
+        floor = self.app.floor_at(self.cx)
         self.t += 1
         self.moving = False
         if self.kick_cd:
             self.kick_cd -= 1
+        if self.social_cd:
+            self.social_cd -= 1
 
-        # ayağının altındaki pencere kaybolduysa (taşındı / kapandı) düş
+        # ayağının altındaki zemin değiştiyse (pencere kapandı / başka ekrana geçti) düş
         if self.state not in ("drag", "fall"):
             if self.on_window:
                 p = self.platform_near()
                 if p is None:
-                    self.on_window = False
-                    self.vx, self.vy = self.facing * s * 0.6, 0.0
-                    self.set_state("fall")
+                    self.start_fall()
                 else:
                     self.surface = p
+            elif floor > self.surface + 2 * s and self.state != "game":
+                self.start_fall()
             else:
-                self.surface = b
+                self.surface = floor
         ground = self.surface - self.H
         st = self.state
 
@@ -422,19 +502,23 @@ class Pet:
 
         elif st == "fall":
             prev_bottom = self.y + self.H
-            self.vy += 0.35 * s
+            gliding = self.sp.get("glide") and self.vy > 0
+            self.vy += (0.12 if gliding else 0.35) * s
+            if gliding:
+                self.vy = min(self.vy, 1.6 * s)
             self.x += self.vx
             self.y += self.vy
             if self.x < l or self.x > r - self.W:
                 self.x = min(max(self.x, l), r - self.W)
                 self.vx = -self.vx * 0.5
-            if self.y < t - self.top_pad:
-                self.y, self.vy = t - self.top_pad, abs(self.vy) * 0.3
+            top = self.app.top_at(self.cx) - self.top_pad
+            if self.y < top:
+                self.y, self.vy = top, abs(self.vy) * 0.3
             if self.vy >= 0:
-                land = self.landing(prev_bottom, self.y + self.H)
+                land = self.landing(prev_bottom, self.y + self.H, floor)
                 if land is not None:
                     self.y = land - self.H
-                    climbed = land < b
+                    climbed = land < floor
                     if climbed and not self.on_window:
                         self.app.stat("climbs")
                     self.on_window, self.surface = climbed, land
@@ -443,6 +527,15 @@ class Pet:
                     else:
                         self.vx = self.vy = 0
                         self.set_state("idle", random.randint(20, 50))
+
+        elif st == "game":
+            self.y = ground
+            dx = self.app.root.winfo_pointerx() - self.cx
+            if abs(dx) > s:
+                self.facing = 1 if dx > 0 else -1
+                self.x += self.facing * min(abs(dx), 3.2 * s)
+                self.x = min(max(self.x, l), r - self.W)
+                self.moving = True
 
         elif st == "walk":
             self.y = ground
@@ -455,7 +548,7 @@ class Pet:
             if self.timer <= 0:
                 self.choose()
 
-        elif st in ("chase", "food", "play"):
+        elif st in ("chase", "food", "play", "follow"):
             self.y = ground
             tgt = self.target()
             self.timer -= 1
@@ -463,10 +556,13 @@ class Pet:
                 self.choose()
             else:
                 tx, reachable = tgt
-                dx = tx - (self.x + self.W / 2)
+                dx = tx - self.cx
                 close = abs(dx) < self.W * (0.35 if st == "play" else 0.3)
                 if close and st == "chase":
                     self.caught_mouse()
+                elif close and st == "follow":
+                    self.set_state("happy", 40)
+                    self.spawn("heart")
                 elif close and st == "food" and reachable:
                     self.eat(min(self.app.fish, key=lambda f: abs(f.cx - tx)))
                 elif close and st == "play":
@@ -475,7 +571,7 @@ class Pet:
                         self.kick(ball)
                 if not close or st == "play":
                     self.facing = 1 if dx > 0 else -1
-                    mult = {"chase": 1.3, "food": 1.7, "play": 1.5}[st]
+                    mult = {"chase": 1.3, "food": 1.7, "play": 1.5, "follow": 1.4}[st]
                     step = s * mult * self.sp["speed"] * (0.7 if self.energy < 20 else 1)
                     self.x += self.facing * min(abs(dx), step)
                     self.x = min(max(self.x, l), r - self.W)
@@ -507,10 +603,13 @@ class Pet:
             self.y = ground - lift
             self.airborne = lift > s
 
+        if self.stage[0] == 2 and self.t % 45 == 0 and self.state != "sleep":
+            self.spawn("star")                      # efsaneler ışıldar
+
         self.next_chat -= 1
         if self.next_chat <= 0:
             self.next_chat = random.randint(25 * 35, 25 * 90)
-            if self.state not in ("sleep", "drag", "fall"):
+            if self.state not in ("sleep", "drag", "fall", "game"):
                 self.chatter()
 
         if self.t % 100 == 0:
@@ -529,7 +628,10 @@ class Pet:
             else:
                 name = "walk1" if (self.t // self.sp["step"]) % 2 == 0 else "walk2"
         elif st == "fall":
-            name = "walk2" if self.vy < 0 else "dangle"
+            if self.sp.get("glide"):
+                name = "walk2" if (self.t // 3) % 2 else "dangle"
+            else:
+                name = "walk2" if self.vy < 0 else "dangle"
         elif st == "drag":
             name = "dangle"
         elif st == "sleep":
@@ -540,30 +642,30 @@ class Pet:
             name = "happy" if (self.t // 5) % 2 == 0 else "walk1"
         else:
             name = "blink" if self.t % 70 < 4 else "walk1"
-        key = (name, self.facing)
+        key = (name, self.facing, self.acc)
         if key != self.cur:
-            img = self.app.img(self.species, self.color, name, self.facing, self.app.s)
+            img = self.app.img(self.species, self.color, name, self.facing, self.scale, self.acc)
             self.c.itemconfig(self.sprite, image=img)
             self.cur = key
 
     def head_pos(self):
         """Kafanın pencere içindeki konumu (piksel)."""
-        s = self.app.s
+        s = self.scale
         col, row = self.sp["sleep_head" if self.state == "sleep" else "head"]
         if self.facing == -1:
             col = 20 - col
         return col * s, self.top_pad + row * s
 
     def spawn(self, kind):
-        s = self.app.s
+        s = self.scale
         hx, hy = self.head_pos()
-        item = self.c.create_image(hx + random.randint(-s, s), hy,
+        item = self.c.create_image(hx + random.randint(-s, s), hy - (TOP * s if self.acc else 0),
                                    image=self.app.effect(kind, max(2, s // 2)))
         self.particles.append([item, random.uniform(-0.3, 0.3) * s, 22])
 
     def update_particles(self):
         for p in self.particles[:]:
-            self.c.move(p[0], p[1], -0.4 * self.app.s)
+            self.c.move(p[0], p[1], -0.4 * self.scale)
             p[2] -= 1
             if p[2] <= 0:
                 self.c.delete(p[0])
@@ -586,7 +688,7 @@ class Pet:
         self.dragging = False
 
     def on_motion(self, e):
-        if not self.drag:
+        if not self.drag or self.state == "game":
             return
         ox, oy, sx, sy = self.drag
         if not self.dragging and abs(e.x_root - sx) + abs(e.y_root - sy) > 6:
@@ -600,10 +702,10 @@ class Pet:
 
     def on_release(self, e):
         if self.dragging:
-            s = self.app.s
+            s = self.scale
             cap = 6 * s
             if math.hypot(self.vx, self.vy) > 3.5 * s:
-                self.say(random.choice(MOOD_LINES["thrown"]))
+                self.say(mood("thrown"))
                 self.app.stat("throws")
             self.vx = max(-cap, min(cap, self.vx))
             self.vy = max(-cap, min(cap, self.vy))
@@ -616,20 +718,27 @@ class Pet:
         app = self.app
         m = app.menu
         m.delete(0, "end")
-        m.add_command(label=f"{self.name} (seviye {self.level})", state="disabled")
+        title = sp_text(self.species, "title").lower()
+        m.add_command(label=_("{name} (seviye {level} {title})").format(name=self.name, level=self.level,
+                                                                       title=title), state="disabled")
         m.add_separator()
-        m.add_command(label="Sev", command=self.pet)
-        m.add_command(label="Besle", command=lambda: app.drop_fish(self.x + self.W / 2))
-        m.add_command(label="Top at", command=app.throw_ball)
+        if self.state == "game":
+            m.add_command(label=_("Oyunu bitir"), command=app.stop_game)
+            m.tk_popup(e.x_root, e.y_root)
+            return
+        m.add_command(label=_("Sev"), command=self.pet)
+        m.add_command(label=_("Besle"), command=lambda: app.drop_fish(self.cx))
+        m.add_command(label=_("Top at"), command=app.throw_ball)
         if self.state == "sleep":
-            m.add_command(label="Uyandır", command=self.pet)
+            m.add_command(label=_("Uyandır"), command=self.pet)
         else:
-            m.add_command(label="Uyut", command=lambda: self.set_state("sleep", 800))
-        m.add_command(label="Beni kovala", command=lambda: self.set_state("chase", 300))
-        m.add_command(label="Zıplat", command=self.jump)
+            m.add_command(label=_("Uyut"), command=lambda: self.set_state("sleep", 800))
+        m.add_command(label=_("Beni kovala"), command=lambda: self.set_state("chase", 300))
+        m.add_command(label=_("Mama Yağmuru oyna"), command=lambda: app.start_game(self))
         m.add_separator()
-        m.add_command(label="Dostlarımı aç...", command=lambda: app.show_hub("pets"))
-        m.add_command(label="Kaldır", command=lambda: app.remove_pet(self))
+        m.add_command(label=_("Aksesuar..."), command=lambda: app.show_hub("pets", wardrobe=self.id))
+        m.add_command(label=_("Dostlarımı aç..."), command=lambda: app.show_hub("pets"))
+        m.add_command(label=_("Kaldır"), command=lambda: app.remove_pet(self))
         m.tk_popup(e.x_root, e.y_root)
 
     def destroy(self):

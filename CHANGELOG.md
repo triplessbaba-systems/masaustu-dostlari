@@ -1,5 +1,24 @@
 # Değişiklik Günlüğü
 
+## 3.0.0
+
+### Yeni
+- Dört yeni tür: tilki, ördek, hamster ve 8 başarımla açılan nadir ejderha. Ejderha zıplayınca süzülerek iner.
+- Gelişim: dostlar yavru başlar, 5. seviyede yetişkin, 10. seviyede efsane olur.
+- Aksesuarlar: silindir şapka, fiyonk, çiçek, parti şapkası, taç ve mevsimlik cadı ile Noel şapkaları. Dostlarım sayfasındaki dolaptan takılır.
+- Dostlar arası etkileşim: selamlaşma, kovalamaca, birlikte uyuma ve en iyi arkadaş bilgisi.
+- Mama Yağmuru mini oyunu.
+- Mevsim efektleri: kar, sonbahar yaprakları, çiçek yaprakları ve ateşböcekleri.
+- Çoklu monitör desteği.
+- İngilizce arayüz.
+- Yeni sürüm bildirimi.
+- Dört yeni başarım (toplam 16).
+
+### Değişen
+- Sahiplen sayfası 4 sütunlu tür seçimine geçti.
+- Başarımlar sayfası 4 sütuna geçti, istatistiklere rekor eklendi.
+- Kayıt dosyası 3. sürüme geçti; eski kayıtlar otomatik taşınır.
+
 ## 2.0.0
 
 ### Yeni
